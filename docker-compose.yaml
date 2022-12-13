@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+    backend:
+        build:
+            context: .
+            dockerfile: build/symfony/Dockerfile
+        container_name: symfony_docker
+        restart: on-failure
+        ports:
+            - "8245:80"
+        volumes:
+            - ./build/symfony/vhosts:/etc/apache2/sites-enabled
+            - ./backend:/var/www/backend
+        networks:
+            - dev
+
+    frontend:
+        container_name: react_docker
+        build:
+            context: .
+            dockerfile: build/react/Dockerfile
+            target: development
+        restart: unless-stopped
+        ports:
+        - 3000:3000
+        volumes:
+        - ./frontend/src:/app/src
+        networks:
+            - dev
+            # - nginx-proxy-manager_default
+
+    caddy:
+        image: dunglas/mercure
+        restart: unless-stopped
+        container_name: mercure_docker
+        environment:
+            # Uncomment the following line to disable HTTPS
+            SERVER_NAME: ':80'
+            MERCURE_PUBLISHER_JWT_KEY: '!ChangeMe!'
+            MERCURE_SUBSCRIBER_JWT_KEY: '!ChangeMe!'
+            MERCURE_EXTRA_DIRECTIVES:
+                cors_origins "http://localhost:3000"
+                cors_origins "http://localhost:8245"
+            #    anonymous
+        # Uncomment the following line to enable the development mode
+#        command: /usr/bin/caddy run -config /etc/caddy/Caddyfile.dev
+        ports:
+            - "9090:80"
+            - "442:442"
+#        volumes:
+#            - caddy_data:/data
+#            - caddy_config:/config
+        networks:
+            - dev
+
+    db:
+        image: mariadb:10.8.2
+        container_name: projet_mariadb_docker
+        restart: always
+        ports:
+            - "3306:3306"
+        volumes:
+            - db-data:/var/lib/mysql
+        environment:
+            MYSQL_ROOT_PASSWORD: 'flamingo'
+        networks:
+            - dev
+
+volumes:
+    db-data:
+
+networks:
+    dev:
+    # nginx-proxy-manager_default:
+    #     name: nginx-proxy-manager_default
+    #     external: true
